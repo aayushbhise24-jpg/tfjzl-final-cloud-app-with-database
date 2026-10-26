@@ -1,3 +1,5 @@
+**File: `views.py`**
+
 ```python
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponseRedirect
@@ -6,7 +8,7 @@ from django.views import generic
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from django.db.models import Prefetch
+
 import logging
 
 from .models import (
@@ -14,13 +16,12 @@ from .models import (
     Enrollment,
     Question,
     Choice,
-    Submission
+    Submission,
 )
 
 logger = logging.getLogger(__name__)
 
 
-# User registration
 def registration_request(request):
     context = {}
 
@@ -31,24 +32,12 @@ def registration_request(request):
             context
         )
 
-    elif request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['psw']
-        first_name = request.POST['firstname']
-        last_name = request.POST['lastname']
+    username = request.POST['username']
+    password = request.POST['psw']
+    first_name = request.POST['firstname']
+    last_name = request.POST['lastname']
 
-        user_exist = User.objects.filter(username=username).exists()
-
-        if not user_exist:
-            user = User.objects.create_user(
-                username=username,
-                first_name=first_name,
-                last_name=last_name,
-                password=password
-            )
-            login(request, user)
-            return redirect("onlinecourse:index")
-
+    if User.objects.filter(username=username).exists():
         context['message'] = "User already exists."
         return render(
             request,
@@ -56,27 +45,34 @@ def registration_request(request):
             context
         )
 
+    user = User.objects.create_user(
+        username=username,
+        first_name=first_name,
+        last_name=last_name,
+        password=password
+    )
 
-# User login
+    login(request, user)
+    return redirect('onlinecourse:index')
+
+
 def login_request(request):
     context = {}
 
-    if request.method == "POST":
+    if request.method == 'POST':
         username = request.POST['username']
         password = request.POST['psw']
 
-        user = authenticate(username=username, password=password)
+        user = authenticate(
+            username=username,
+            password=password
+        )
 
         if user is not None:
             login(request, user)
             return redirect('onlinecourse:index')
 
         context['message'] = "Invalid username or password."
-        return render(
-            request,
-            'onlinecourse/user_login_bootstrap.html',
-            context
-        )
 
     return render(
         request,
@@ -85,13 +81,11 @@ def login_request(request):
     )
 
 
-# User logout
 def logout_request(request):
     logout(request)
     return redirect('onlinecourse:index')
 
 
-# Check enrollment
 def check_if_enrolled(user, course):
     if user.is_authenticated:
         return Enrollment.objects.filter(
@@ -102,37 +96,39 @@ def check_if_enrolled(user, course):
     return False
 
 
-# Course list
 class CourseListView(generic.ListView):
     template_name = 'onlinecourse/course_list_bootstrap.html'
     context_object_name = 'course_list'
 
     def get_queryset(self):
         user = self.request.user
-        courses = Course.objects.order_by('-total_enrollment')[:10]
+
+        courses = Course.objects.order_by(
+            '-total_enrollment'
+        )[:10]
 
         for course in courses:
-            if user.is_authenticated:
-                course.is_enrolled = check_if_enrolled(user, course)
+            course.is_enrolled = check_if_enrolled(
+                user,
+                course
+            )
 
         return courses
 
 
-# Course details
 class CourseDetailView(generic.DetailView):
     model = Course
-    template_name = 'onlinecourse/course_detail_bootstrap.html'
+    template_name = (
+        'onlinecourse/course_details_bootstrap.html'
+    )
 
 
-# Enroll in a course
 def enroll(request, course_id):
     course = get_object_or_404(Course, pk=course_id)
     user = request.user
 
     if user.is_authenticated:
-        is_enrolled = check_if_enrolled(user, course)
-
-        if not is_enrolled:
+        if not check_if_enrolled(user, course):
             Enrollment.objects.create(
                 user=user,
                 course=course,
@@ -144,22 +140,19 @@ def enroll(request, course_id):
 
     return HttpResponseRedirect(
         reverse(
-            viewname='onlinecourse:course_details',
+            'onlinecourse:course_details',
             args=(course.id,)
         )
     )
 
 
-# Extract selected answers from the exam form
 def extract_answers(request):
     submitted_answers = []
 
     for key in request.POST:
         if key.startswith('choice'):
-            value = request.POST[key]
-
             try:
-                choice_id = int(value)
+                choice_id = int(request.POST[key])
                 submitted_answers.append(choice_id)
             except (ValueError, TypeError):
                 continue
@@ -167,15 +160,16 @@ def extract_answers(request):
     return submitted_answers
 
 
-# Submit exam answers
 @login_required
 def submit(request, course_id):
-    course = get_object_or_404(Course, pk=course_id)
-    user = request.user
+    course = get_object_or_404(
+        Course,
+        pk=course_id
+    )
 
     enrollment = get_object_or_404(
         Enrollment,
-        user=user,
+        user=request.user,
         course=course
     )
 
@@ -191,6 +185,7 @@ def submit(request, course_id):
             pk=choice_id,
             question__course=course
         )
+
         submission.choices.add(choice)
 
     return redirect(
@@ -200,10 +195,12 @@ def submit(request, course_id):
     )
 
 
-# Show exam results
 @login_required
 def show_exam_result(request, course_id, submission_id):
-    course = get_object_or_404(Course, pk=course_id)
+    course = get_object_or_404(
+        Course,
+        pk=course_id
+    )
 
     submission = get_object_or_404(
         Submission,
@@ -212,12 +209,15 @@ def show_exam_result(request, course_id, submission_id):
         enrollment__course=course
     )
 
-    selected_ids = list(
-        submission.choices.values_list('id', flat=True)
-    )
+    questions = Question.objects.filter(
+        course=course
+    ).prefetch_related('choice_set')
 
-    questions = Question.objects.filter(course=course).prefetch_related(
-        'choice_set'
+    selected_ids = list(
+        submission.choices.values_list(
+            'id',
+            flat=True
+        )
     )
 
     total_score = 0
@@ -227,18 +227,21 @@ def show_exam_result(request, course_id, submission_id):
     for question in questions:
         possible_score += question.grade
 
-        correct_choices = question.choice_set.filter(is_correct=True)
-        correct_ids = set(
-            correct_choices.values_list('id', flat=True)
-        )
-
         selected_for_question = set(
             submission.choices.filter(
                 question=question
             ).values_list('id', flat=True)
         )
 
-        is_correct = question.is_get_score(selected_for_question)
+        correct_ids = set(
+            question.choice_set.filter(
+                is_correct=True
+            ).values_list('id', flat=True)
+        )
+
+        is_correct = question.is_get_score(
+            selected_for_question
+        )
 
         if is_correct:
             total_score += question.grade
@@ -248,7 +251,15 @@ def show_exam_result(request, course_id, submission_id):
             'selected_ids': list(selected_for_question),
             'correct_ids': list(correct_ids),
             'is_correct': is_correct,
+            'grade': question.grade,
         })
+
+    # A simple percentage calculation.
+    grade = (
+        (total_score / possible_score) * 100
+        if possible_score > 0
+        else 0
+    )
 
     context = {
         'course': course,
@@ -259,6 +270,7 @@ def show_exam_result(request, course_id, submission_id):
         'total_score': total_score,
         'possible_score': possible_score,
         'possible': possible_score,
+        'grade': grade,
     }
 
     return render(
