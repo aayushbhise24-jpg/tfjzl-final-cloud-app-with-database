@@ -1,56 +1,107 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
-     {% load static %}
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>{{ course.name }}</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet"
+          href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-    <meta charset="UTF-8">
 </head>
 
 <body>
     <!-- Navigation bar -->
-    <nav class="navbar navbar-light bg-light">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <div class="navbar-header">
-                  <a class="navbar-brand" href="{% url 'onlinecourse:index' %}">Home</a>
-            </div>
-            <ul class="nav navbar-nav navbar-right">
+            <a class="navbar-brand" href="{% url 'onlinecourse:index' %}">
+                Home
+            </a>
+
+            <div class="ml-auto">
                 {% if user.is_authenticated %}
-                <li>
-                    <a class="btn btn-link" href="#">{{ user.first_name }}({{ user.username }})</a>
-                    <a class="btn btn-link" href="{% url 'onlinecourse:logout' %}">Logout</a>
-                </li>
+                    <span class="navbar-text mr-3">
+                        {{ user.first_name }} ({{ user.username }})
+                    </span>
+
+                    <a class="btn btn-outline-danger"
+                       href="{% url 'onlinecourse:logout' %}">
+                        Logout
+                    </a>
                 {% else %}
-                <li>
-                    <form class="form-inline" action="{% url 'onlinecourse:login' %}" method="post">
+                    <form class="form-inline"
+                          action="{% url 'onlinecourse:login' %}"
+                          method="post">
                         {% csrf_token %}
-                        <div class="input-group">
-                            <input type="text" class="form-control" placeholder="Username" name="username" >
-                            <input type="password" class="form-control" placeholder="Username" name="psw" >
-                            <button class="btn btn-primary" type="submit">Login</button>
-                            <a class="btn btn-link" href="{% url 'onlinecourse:registration' %}">Sign Up</a>
-                        </div>
+
+                        <input type="text"
+                               class="form-control mr-2"
+                               placeholder="Username"
+                               name="username"
+                               required>
+
+                        <input type="password"
+                               class="form-control mr-2"
+                               placeholder="Password"
+                               name="psw"
+                               required>
+
+                        <button class="btn btn-primary mr-2" type="submit">
+                            Login
+                        </button>
+
+                        <a class="btn btn-link"
+                           href="{% url 'onlinecourse:registration' %}">
+                            Sign Up
+                        </a>
                     </form>
-                </li>
                 {% endif %}
-            </ul>
+            </div>
         </div>
     </nav>
 
-    <!-- Page content -->
-    <div class="container-fluid">
-            <h2>{{ course.name }}</h2>
-            <div class="card-columns-vertical">
-                {% for lesson in course.lesson_set.all %}
-                    <div class="card mt-1">
-                        <div class="card-header"><h5>Lesson {{lesson.order|add:1}}: {{lesson.title}}</h5></div>
-                        <div class="card-body">{{lesson.content}}</div>
-                    </div>
-                {% endfor %}
+    <!-- Course details -->
+    <div class="container mt-4 mb-5">
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h2 class="mb-0">{{ course.name }}</h2>
             </div>
-            <!-- Course detail template changes go here -->
+
+            <div class="card-body">
+                <p class="text-muted">{{ course.description }}</p>
+            </div>
+        </div>
+
+        <!-- Related lessons -->
+        <h3 class="mb-3">Course Lessons</h3>
+
+        {% for lesson in course.lesson_set.all %}
+            <div class="card mb-3">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        Lesson {{ lesson.order|add:1 }}: {{ lesson.title }}
+                    </h5>
+                </div>
+
+                <div class="card-body">
+                    <p class="mb-0">{{ lesson.content }}</p>
+                </div>
+            </div>
+        {% empty %}
+            <div class="alert alert-info">
+                No lessons are available for this course.
+            </div>
+        {% endfor %}
+
     </div>
 </body>
 </html>
+```
