@@ -1,20 +1,20 @@
+**File: `urls.py`**
+
 ```python
 from django.urls import path
 from django.conf import settings
 from django.conf.urls.static import static
+
 from . import views
 
 app_name = 'onlinecourse'
 
 urlpatterns = [
-    # Course list
     path(
-        route='',
-        view=views.CourseListView.as_view(),
+        '',
+        views.CourseListView.as_view(),
         name='index'
     ),
-
-    # User registration, login, and logout
     path(
         'registration/',
         views.registration_request,
@@ -30,31 +30,23 @@ urlpatterns = [
         views.logout_request,
         name='logout'
     ),
-
-    # Course details
     path(
         '<int:pk>/',
         views.CourseDetailView.as_view(),
         name='course_details'
     ),
-
-    # Enroll in a course
     path(
         '<int:course_id>/enroll/',
         views.enroll,
         name='enroll'
     ),
-
-    # Submit exam answers
     path(
         '<int:course_id>/submit/',
         views.submit,
         name='submit'
     ),
-
-    # Display exam results
     path(
-        '<int:course_id>/exam_result/<int:submission_id>/',
+        'course/<int:course_id>/submission/<int:submission_id>/result/',
         views.show_exam_result,
         name='show_exam_result'
     ),
