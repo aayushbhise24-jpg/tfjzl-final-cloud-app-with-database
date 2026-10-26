@@ -149,6 +149,7 @@ class Choice(models.Model):
         return self.choice_text
 
 
+```python
 class Submission(models.Model):
     enrollment = models.ForeignKey(
         Enrollment,
@@ -157,5 +158,5 @@ class Submission(models.Model):
     choices = models.ManyToManyField(Choice)
 
     def __str__(self):
-        return "Submission for " + str(self.enrollment)
+        return f"Submission {self.id} for enrollment {self.enrollment.id}"
 ```
